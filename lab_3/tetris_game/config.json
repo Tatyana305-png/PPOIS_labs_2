@@ -1,0 +1,26 @@
+{
+    "game": {
+        "width": 300,
+        "height": 600,
+        "block_size": 30,
+        "fps": 60,
+        "initial_speed": 500,
+        "speed_increase_per_level": 50,
+        "min_speed": 100,
+        "window_width": 800,
+        "window_height": 700
+    },
+    "scoring": {
+        "single_line": 100,
+        "double_line": 300,
+        "triple_line": 500,
+        "tetris_line": 800
+    },
+    "colors": {
+        "background": [0, 0, 0],
+        "grid": [40, 40, 40],
+        "text": [255, 255, 255],
+        "shadow": [100, 100, 100],
+        "preview_bg": [20, 20, 20]
+    }
+}
