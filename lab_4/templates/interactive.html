@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Интерактивный режим - Компилятор{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Интерактивный режим</h1>
+    <p>Поэтапная компиляция с визуализацией результатов</p>
+</div>
+
+<div class="interactive-container">
+    <div class="code-section">
+        <h3>Исходный код</h3>
+        <textarea id="interactive-code" rows="10" class="code-editor" placeholder="Введите код..."></textarea>
+        <div class="button-group">
+            <button onclick="loadExampleCode()" class="btn btn-secondary"> Пример</button>
+            <button onclick="clearCode()" class="btn btn-secondary">🗑 Очистить</button>
+        </div>
+    </div>
+
+    <div class="stages-section">
+        <h3>Этапы компиляции</h3>
+        <div class="stage-buttons">
+            <button onclick="compileStage('lexical')" class="stage-btn" data-stage="lexical">
+                <span class="stage-icon"></span>
+                <span>Лексический анализ</span>
+            </button>
+            <button onclick="compileStage('syntax')" class="stage-btn" data-stage="syntax">
+                <span class="stage-icon"></span>
+                <span>Синтаксический анализ</span>
+            </button>
+            <button onclick="compileStage('optimize')" class="stage-btn" data-stage="optimize">
+                <span class="stage-icon"></span>
+                <span>Оптимизация</span>
+            </button>
+            <button onclick="compileStage('code')" class="stage-btn" data-stage="code">
+                <span class="stage-icon"></span>
+                <span>Генерация кода</span>
+            </button>
+            <button onclick="compileStage('full')" class="stage-btn primary" data-stage="full">
+                <span class="stage-icon"></span>
+                <span>Полная компиляция</span>
+            </button>
+        </div>
+
+        <div class="optimization-control">
+            <label>Уровень оптимизации:</label>
+            <select id="opt-level">
+                <option value="0">0 - Без оптимизации</option>
+                <option value="1" selected>1 - Базовая оптимизация</option>
+                <option value="2">2 - Полная оптимизация</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="results-section">
+        <div class="results-header">
+            <h3>Результаты</h3>
+            <div class="loading" id="loading" style="display: none;"> Компиляция...</div>
+        </div>
+
+        <div id="error-message" class="alert alert-error" style="display: none;"></div>
+
+        <div class="result-tabs">
+            <div class="tab-buttons">
+                <button class="tab-btn active" data-tab="tokens-tab"> Токены</button>
+                <button class="tab-btn" data-tab="ast-tab"> AST</button>
+                <button class="tab-btn" data-tab="optimized-tab"> Оптимизированный</button>
+                <button class="tab-btn" data-tab="code-tab"> Машинный код</button>
+            </div>
+
+            <div class="tab-contents">
+                <div class="tab-content active" id="tokens-tab">
+                    <div id="tokens-result" class="result-content">Нажмите на этап компиляции</div>
+                </div>
+                <div class="tab-content" id="ast-tab">
+                    <div id="ast-result" class="result-content ast-viewer"></div>
+                </div>
+                <div class="tab-content" id="optimized-tab">
+                    <div id="optimized-result" class="result-content ast-viewer"></div>
+                </div>
+                <div class="tab-content" id="code-tab">
+                    <div id="code-result" class="result-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentData = {};
+
+function loadExampleCode() {
+    fetch('/api/example')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('interactive-code').value = data.code;
+        });
+}
+
+function clearCode() {
+    document.getElementById('interactive-code').value = '';
+    clearResults();
+}
+
+function clearResults() {
+    document.getElementById('tokens-result').innerHTML = 'Нажмите на этап компиляции';
+    document.getElementById('ast-result').innerHTML = '';
+    document.getElementById('optimized-result').innerHTML = '';
+    document.getElementById('code-result').innerHTML = '';
+    document.getElementById('error-message').style.display = 'none';
+    currentData = {};
+}
+
+function showLoading() {
+    document.getElementById('loading').style.display = 'block';
+    document.querySelectorAll('.stage-btn').forEach(btn => btn.disabled = true);
+}
+
+function hideLoading() {
+    document.getElementById('loading').style.display = 'none';
+    document.querySelectorAll('.stage-btn').forEach(btn => btn.disabled = false);
+}
+
+function showError(message) {
+    const errorDiv = document.getElementById('error-message');
+    errorDiv.textContent = '❌ ' + message;
+    errorDiv.style.display = 'block';
+    setTimeout(() => {
+        errorDiv.style.display = 'none';
+    }, 5000);
+}
+
+function renderAST(node, container) {
+    const div = document.createElement('div');
+    div.className = 'ast-node';
+
+    const header = document.createElement('div');
+    header.className = 'ast-header';
+    header.innerHTML = `<span class="ast-type">${node.type}</span>${node.value ? `: <span class="ast-value">${node.value}</span>` : ''}<span class="ast-position">[${node.line}:${node.column}]</span>`;
+    div.appendChild(header);
+
+    if (node.children && node.children.length > 0) {
+        const childrenDiv = document.createElement('div');
+        childrenDiv.className = 'ast-children';
+        node.children.forEach(child => {
+            childrenDiv.appendChild(renderAST(child, childrenDiv));
+        });
+        div.appendChild(childrenDiv);
+    }
+
+    return div;
+}
+
+function renderTokens(tokens) {
+    if (!tokens || tokens.length === 0) {
+        return '<div class="info-message">Нет токенов для отображения</div>';
+    }
+
+    let html = '<table class="tokens-table"><thead><tr><th>№</th><th>Линия</th><th>Колонка</th><th>Тип</th><th>Значение</th></tr></thead><tbody>';
+    tokens.forEach((token, i) => {
+        html += `<tr>
+            <td>${i + 1}</td>
+            <td>${token.line}</td>
+            <td>${token.column}</td>
+            <td><span class="token-type">${token.type}</span></td>
+            <td><code>${escapeHtml(token.value)}</code></td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    return html;
+}
+
+function renderMachineCode(code) {
+    if (!code || code.length === 0) {
+        return '<div class="info-message">Нет машинного кода для отображения</div>';
+    }
+
+    let html = '<table class="code-table"><thead><tr><th>№</th><th>Инструкция</th><th>Операнды</th></tr></thead><tbody>';
+    code.forEach((instr, i) => {
+        html += `<tr>
+            <td>${i}</td>
+            <td><span class="opcode">${instr.opcode}</span></td>
+            <td><code>${escapeHtml(instr.operands.join(', '))}</code></td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    return html;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function compileStage(stage) {
+    const code = document.getElementById('interactive-code').value;
+    if (!code.trim()) {
+        showError('Введите исходный код');
+        return;
+    }
+
+    showLoading();
+
+    fetch('/api/compile', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            code: code,
+            stage: stage,
+            optimization: parseInt(document.getElementById('opt-level').value)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+
+        if (!data.success) {
+            showError(data.error || 'Ошибка компиляции');
+            return;
+        }
+
+        currentData = data;
+
+        // Обновляем результаты
+        if (data.tokens) {
+            document.getElementById('tokens-result').innerHTML = renderTokens(data.tokens);
+        } else {
+            document.getElementById('tokens-result').innerHTML = '<div class="info-message">Токены недоступны для этого этапа</div>';
+        }
+
+        if (data.ast) {
+            const container = document.getElementById('ast-result');
+            container.innerHTML = '';
+            container.appendChild(renderAST(data.ast, container));
+        } else {
+            document.getElementById('ast-result').innerHTML = '<div class="info-message">AST недоступен для этого этапа</div>';
+        }
+
+        if (data.optimized_ast) {
+            const container = document.getElementById('optimized-result');
+            container.innerHTML = '';
+            container.appendChild(renderAST(data.optimized_ast, container));
+        } else {
+            document.getElementById('optimized-result').innerHTML = '<div class="info-message">Оптимизированный AST недоступен для этого этапа</div>';
+        }
+
+        if (data.machine_code) {
+            document.getElementById('code-result').innerHTML = renderMachineCode(data.machine_code);
+        } else {
+            document.getElementById('code-result').innerHTML = '<div class="info-message">Машинный код недоступен для этого этапа</div>';
+        }
+
+        // Подсвечиваем активную кнопку
+        document.querySelectorAll('.stage-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.stage === stage) {
+                btn.classList.add('active');
+            }
+        });
+    })
+    .catch(error => {
+        hideLoading();
+        showError('Ошибка соединения: ' + error.message);
+    });
+}
+
+// Табы
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tabId = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+    });
+});
+
+// Загружаем пример при загрузке страницы
+loadExampleCode();
+</script>
+{% endblock %}

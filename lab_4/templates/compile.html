@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Компиляция - Компилятор{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Компиляция кода</h1>
+    <p>Введите исходный код и выберите этап компиляции</p>
+</div>
+
+<div class="compile-container">
+    <div class="compile-panel">
+        <form method="POST" class="compile-form">
+            <div class="form-group">
+                <label for="code">Исходный код:</label>
+                <textarea id="code" name="code" rows="12" class="code-editor" placeholder="Введите код...">{{ example_code }}</textarea>
+                <button type="button" class="btn btn-small btn-secondary" onclick="loadExample()"> Загрузить пример</button>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="stage">Этап компиляции:</label>
+                    <select id="stage" name="stage" class="form-control">
+                        <option value="lexical">Лексический анализ (токены)</option>
+                        <option value="syntax">Синтаксический анализ (AST)</option>
+                        <option value="optimize">Оптимизация</option>
+                        <option value="code">Генерация кода</option>
+                        <option value="full" selected>Полная компиляция</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="optimization">Уровень оптимизации:</label>
+                    <select id="optimization" name="optimization" class="form-control">
+                        <option value="0">Без оптимизации (0)</option>
+                        <option value="1" selected>Базовая оптимизация (1)</option>
+                        <option value="2">Полная оптимизация (2)</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-large"> Компилировать</button>
+        </form>
+    </div>
+
+    {% if result %}
+    <div class="results-panel">
+        <h2>Результаты компиляции</h2>
+
+        {% if result.success %}
+            <div class="alert alert-success">
+                ✅ Компиляция успешно завершена
+                <small>Этап: {{ result.stage }}, Уровень оптимизации: {{ result.optimization_level }}</small>
+            </div>
+        {% else %}
+            <div class="alert alert-error">
+                ❌ Ошибка компиляции
+                {% for error in result.errors %}
+                    <div class="error-detail">{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if result.statistics %}
+        <div class="statistics">
+            <h3>Статистика</h3>
+            <div class="stats-grid">
+                {% if result.statistics.tokens %}
+                <div class="stat-card">
+                    <h4>Токены</h4>
+                    <table class="stat-table">
+                        {% for type, count in result.statistics.tokens.items() %}
+                        <tr>
+                            <td>{{ type }}</td>
+                            <td class="stat-value">{{ count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+                {% endif %}
+
+                {% if result.statistics.ast_nodes %}
+                <div class="stat-card">
+                    <h4>AST узлов</h4>
+                    <div class="stat-number">{{ result.statistics.ast_nodes }}</div>
+                </div>
+                {% endif %}
+
+                {% if result.statistics.optimized_nodes %}
+                <div class="stat-card">
+                    <h4>Оптимизированных узлов</h4>
+                    <div class="stat-number">{{ result.statistics.optimized_nodes }}</div>
+                </div>
+                {% endif %}
+
+                {% if result.statistics.instructions %}
+                <div class="stat-card">
+                    <h4>Инструкций</h4>
+                    <div class="stat-number">{{ result.statistics.instructions }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="result-tabs">
+            <div class="tab-buttons">
+                {% if result.tokens %}
+                <button class="tab-btn active" data-tab="tokens"> Токены</button>
+                {% endif %}
+                {% if result.ast %}
+                <button class="tab-btn" data-tab="ast"> AST</button>
+                {% endif %}
+                {% if result.optimized_ast %}
+                <button class="tab-btn" data-tab="optimized"> Оптимизированный AST</button>
+                {% endif %}
+                {% if result.machine_code %}
+                <button class="tab-btn" data-tab="code"> Машинный код</button>
+                {% endif %}
+            </div>
+
+            <div class="tab-contents">
+                {% if result.tokens %}
+                <div class="tab-content active" id="tokens">
+                    <div class="tokens-list">
+                        <table class="tokens-table">
+                            <thead>
+                                <tr>
+                                    <th>№</th><th>Линия</th><th>Колонка</th><th>Тип</th><th>Значение</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for token in result.tokens %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>{{ token.line }}</td>
+                                    <td>{{ token.column }}</td>
+                                    <td><span class="token-type">{{ token.type }}</span></td>
+                                    <td><code>{{ token.value }}</code></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if result.ast %}
+                <div class="tab-content" id="ast">
+                    <div class="ast-visualization" id="ast-tree"></div>
+                </div>
+                {% endif %}
+
+                {% if result.optimized_ast %}
+                <div class="tab-content" id="optimized">
+                    <div class="ast-visualization" id="optimized-tree"></div>
+                </div>
+                {% endif %}
+
+                {% if result.machine_code %}
+                <div class="tab-content" id="code">
+                    <div class="machine-code">
+                        <h4>Сгенерированный машинный код ({{ result.machine_code|length }} инструкций):</h4>
+                        <table class="code-table">
+                            <thead>
+                                <tr>
+                                    <th>№</th>
+                                    <th>Инструкция</th>
+                                    <th>Операнды</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for instr in result.machine_code %}
+                                <tr>
+                                    <td>{{ loop.index0 }}</td>
+                                    <td><span class="opcode">{{ instr.opcode }}</span></td>
+                                    <td><code>{{ instr.operands | join(', ') }}</code></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function loadExample() {
+    fetch('/api/example')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('code').value = data.code;
+        });
+}
+
+function renderAST(node, container) {
+    const div = document.createElement('div');
+    div.className = 'ast-node';
+
+    const header = document.createElement('div');
+    header.className = 'ast-header';
+    header.innerHTML = `<span class="ast-type">${node.type}</span>${node.value ? `: <span class="ast-value">${node.value}</span>` : ''}<span class="ast-position">[${node.line}:${node.column}]</span>`;
+    div.appendChild(header);
+
+    if (node.children && node.children.length > 0) {
+        const childrenDiv = document.createElement('div');
+        childrenDiv.className = 'ast-children';
+        node.children.forEach(child => {
+            childrenDiv.appendChild(renderAST(child, childrenDiv));
+        });
+        div.appendChild(childrenDiv);
+    }
+
+    return div;
+}
+
+{% if result and result.ast %}
+const astData = {{ result.ast | tojson }};
+const astContainer = document.getElementById('ast-tree');
+if (astContainer && astData) {
+    astContainer.innerHTML = '';
+    astContainer.appendChild(renderAST(astData, astContainer));
+}
+{% endif %}
+
+{% if result and result.optimized_ast %}
+const optimizedData = {{ result.optimized_ast | tojson }};
+const optimizedContainer = document.getElementById('optimized-tree');
+if (optimizedContainer && optimizedData) {
+    optimizedContainer.innerHTML = '';
+    optimizedContainer.appendChild(renderAST(optimizedData, optimizedContainer));
+}
+{% endif %}
+
+// Табы
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tabId = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+    });
+});
+
+// Если есть машинный код, активируем его вкладку по умолчанию
+{% if result and result.machine_code and not result.tokens %}
+document.querySelector('.tab-btn[data-tab="code"]').click();
+{% endif %}
+</script>
+{% endblock %}

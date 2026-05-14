@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Главная - Компилятор{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <div class="hero-content">
+        <h1 class="hero-title">
+            <span class="hero-icon">⚙️</span>
+            Модель компилятора
+        </h1>
+        <p class="hero-subtitle">
+            Веб-интерфейс для трансляции исходного кода в машинный код
+        </p>
+        <div class="hero-buttons">
+            <a href="{{ url_for('compile_page') }}" class="btn btn-primary btn-large">
+                 Начать компиляцию
+            </a>
+            <a href="{{ url_for('interactive_page') }}" class="btn btn-secondary btn-large">
+                 Интерактивный режим
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="features">
+    <div class="container">
+        <h2 class="section-title">Возможности компилятора</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon"></div>
+                <h3>Лексический анализ</h3>
+                <p>Разбор исходного кода на токены с определением типов (ключевые слова, идентификаторы, операторы, числа)</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"></div>
+                <h3>Синтаксический анализ</h3>
+                <p>Построение абстрактного синтаксического дерева (AST) на основе токенов</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"></div>
+                <h3>Оптимизация</h3>
+                <p>Свертка констант, удаление мертвого кода, распространение констант, уменьшение силы операций</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"></div>
+                <h3>Генерация кода</h3>
+                <p>Создание машинного кода (ассемблероподобные инструкции) на основе оптимизированного AST</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="example">
+    <div class="container">
+        <h2 class="section-title">Пример кода</h2>
+        <div class="example-code">
+            <pre><code>int x = 5 + 3;
+int y = 10;
+int result = x * y;
+
+if (result > 50) {
+    result = result - 10;
+} else {
+    result = result + 10;
+}
+
+while (result > 0) {
+    result = result - 1;
+}
+
+return result;</code></pre>
+        </div>
+    </div>
+</div>
+{% endblock %}
