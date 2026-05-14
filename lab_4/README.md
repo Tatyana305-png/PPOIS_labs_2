@@ -22,6 +22,18 @@
 - **Интерактивный режим** для поэтапной компиляции
 - **Пример кода** для быстрого тестирования
 
+## Общий код для ЛР №1 и ЛР №4
+
+Вся логика компиляции вынесена в отдельный пакет `compiler/`, который используется как в CLI, так и в веб-приложении:
+
+```python
+# ОБЩИЙ КОД - используется и в CLI, и в Web
+from compiler.SourceCode import SourceCode
+from compiler.Compiler import Compiler
+from compiler.Models import ProgrammingLanguage, CompilerState, ASTNode
+from compiler.Exceptions import CompilerException
+```
+
 ## Технологии
 
 - **Backend**: Python 3, Flask
@@ -35,3 +47,30 @@
 ```bash
 git clone https://github.com/yourusername/compiler-web.git
 cd compiler-web
+```
+
+### 2. Создание виртуального окружения
+
+```bash
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# Linux/Mac
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 3. Установка зависимостей
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Запуск приложения
+
+```bash
+python app.py
+```
+
+Приложение будет доступно по [адресу](http://localhost:5000)
